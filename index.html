@@ -1,1 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baixe Qualquer Vídeo</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --surface-color: #1a1a1a;
+            --border-color: #333333;
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --accent-color: #ffffff;
+            --accent-bg: #27272a;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 10vh;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        p {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        input {
+            flex: 1;
+            padding: 15px 20px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            border-color: var(--text-muted);
+        }
+        button.primary {
+            padding: 0 25px;
+            background-color: var(--text-main);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button.primary:hover {
+            opacity: 0.9;
+        }
+        .preview-area {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+        .preview-area img {
+            width: 100%;
+            height: auto;
+            display: none;
+        }
+        .download-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        button.format-btn {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: background-color 0.2s;
+        }
+        button.format-btn:hover:not(:disabled) {
+            background-color: var(--accent-bg);
+        }
+        button.format-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .format-title {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .format-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        #status {
+            color: #ef4444;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Baixe Qualquer Vídeo</h1>
+        <p>Cole um link de vídeo abaixo. Escolha seu formato e qualidade preferidos.</p>
+
+        <div class="search-box">
+            <input type="text" id="urlInput" placeholder="Cole o link do YouTube aqui...">
+            <button class="primary" id="searchBtn">Buscar</button>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="preview-area" id="previewArea">
+            <span id="placeholderText">VISUALIZACAO DA MINIATURA</span>
+            <img id="thumbnail" alt="Capa do video">
+        </div>
+
+        <div class="download-options">
+            <button class="format-btn" id="btnCover" disabled>
+                <span class="format-title">Baixar Capa</span>
+                <span class="format-sub">JPEG</span>
+            </button>
+            <button class="format-btn" id="btn720p" disabled>
+                <span class="format-title">720p</span>
+                <span class="format-sub">MP4 (HD)</span>
+            </button>
+            <button class="format-btn" id="btn1080p" disabled>
+                <span class="format-title">1080p</span>
+                <span class="format-sub">MP4 (Full HD)</span>
+            </button>
+            <button class="format-btn" id="btn4k" disabled>
+                <span class="format-title">4K</span>
+                <span class="format-sub">MP4 (Ultra HD)</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const searchBtn = document.getElementById('searchBtn');
+        const urlInput = document.getElementById('urlInput');
+        const statusDiv = document.getElementById('status');
+        const previewArea = document.getElementById('previewArea');
+        const thumbnail = document.getElementById('thumbnail');
+        const placeholderText = document.getElementById('placeholderText');
+        
+        const btnCover = document.getElementById('btnCover');
+        const btn720p = document.getElementById('btn720p');
+        const btn1080p = document.getElementById('btn1080p');
+        const btn4k = document.getElementById('btn4k');
+
+        let currentUrl = "";
+
+        searchBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            currentUrl = url;
+            statusDiv.textContent = "Buscando informações...";
+            searchBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/downloader/info?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Erro ao buscar vídeo");
+                }
+
+                statusDiv.textContent = "";
+                placeholderText.style.display = 'none';
+                thumbnail.src = data.thumbnail;
+                thumbnail.style.display = 'block';
+
+                btnCover.disabled = false;
+                btn720p.disabled = !data.available['720p'];
+                btn1080p.disabled = !data.available['1080p'];
+                btn4k.disabled = !data.available['4k'];
+
+            } catch (error) {
+                statusDiv.textContent = "Erro de rede ou link invalido.";
+                console.error(error);
+            } finally {
+                searchBtn.disabled = false;
+            }
+        });
+
+        function triggerDownload(quality) {
+            if (!currentUrl) return;
+            statusDiv.textContent = "Preparando o arquivo... O download iniciará em breve.";
+            window.location.href = `/api/downloader/download?url=${encodeURIComponent(currentUrl)}&quality=${quality}`;
+            
+            setTimeout(() => {
+                statusDiv.textContent = "";
+            }, 5000);
+        }
+
+        btnCover.addEventListener('click', () => triggerDownload('cover'));
+        btn720p.addEventListener('click', () => triggerDownload('720p'));
+        btn1080p.addEventListener('click', () => triggerDownload('1080p'));
+        btn4k.addEventListener('click', () => triggerDownload('4k'));
+    </script>
+</body>
+</html>
 
