@@ -1,43 +1,89 @@
-import express from 'express';
-import cors from 'cors';
-import { spawn } from 'child_process';
+const express = require('express');
+const ytdl = require('ytdl-core');
+const cors = require('cors');
+const https = require('https');   // ← nativo do Node, zero custo
 
 const app = express();
+
 app.use(cors());
 
-app.get('/download', (req, res) => {
+app.get('/download', async (req, res) => {
     const videoURL = req.query.url;
+    if (!videoURL) return res.status(400).send('URL necessária');
 
-    if (!videoURL) return res.status(400).send('URL faltando');
+    try {
+        const info = await ytdl.getInfo(videoURL);
 
-    // Headers mais simples para o Safari não "engasgar"
-    res.setHeader('Content-Disposition', 'attachment; filename="video_cntube.mp4"');
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Transfer-Encoding', 'chunked'); // Diz para o Safari que o arquivo vem aos poucos
+        // Escolhe o melhor formato com áudio + vídeo
+        let format = ytdl.chooseFormat(info.formats, {
+            quality: 'highestvideo',
+            filter: 'audioandvideo'
+        });
 
-    // Comando mais leve para o Render Grátis não cortar a CPU
-    const yt = spawn('yt-dlp', [
-        '-f', 'mp4',        // Pega o melhor MP4 pronto (mais rápido que converter)
-        '--no-playlist',    // Garante que não tente baixar uma lista inteira
-        '-o', '-',          // Manda para a saída padrão
-        videoURL
-    ]);
+        // Fallback seguro
+        if (!format) {
+            format = ytdl.chooseFormat(info.formats, { filter: 'audioandvideo' });
+        }
+        if (!format) {
+            return res.status(500).send('Formato de vídeo não encontrado');
+        }
 
-    yt.stdout.pipe(res);
+        // Nome amigável do arquivo (com título do vídeo)
+        const safeTitle = info.videoDetails.title
+            .replace(/[^a-zA-Z0-9._-]/g, '_')
+            .substring(0, 100);
+        const filename = `${safeTitle}.mp4`;
 
-    yt.stderr.on('data', (data) => {
-        console.log(`Log: ${data}`);
-    });
+        const range = req.headers.range;
 
-    yt.on('error', (err) => {
-        console.error('Erro ao iniciar yt-dlp:', err);
-    });
+        let start = 0;
+        let end = format.contentLength ? parseInt(format.contentLength) - 1 : Infinity;
+        let contentLength = format.contentLength ? parseInt(format.contentLength) : null;
 
-    // Se o processo fechar com erro, avisa no log
-    yt.on('close', (code) => {
-        if (code !== 0) console.log(`Erro no download. Código: ${code}`);
-    });
+        let statusCode = 200;
+        const headers = {
+            'Content-Type': 'video/mp4',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Accept-Ranges': 'bytes',
+            'Connection': 'keep-alive'
+        };
+
+        // === SUPORTE A RANGE REQUESTS (OBRIGATÓRIO PARA SAFARI) ===
+        if (range) {
+            const rangeParts = range.replace(/bytes=/, '').split('-');
+            start = parseInt(rangeParts[0], 10) || 0;
+            end = rangeParts[1] ? parseInt(rangeParts[1], 10) : end;
+            if (end > contentLength - 1) end = contentLength - 1;
+
+            statusCode = 206;
+            contentLength = end - start + 1;
+
+            headers['Content-Range'] = `bytes ${start}-${end}/${format.contentLength}`;
+            headers['Content-Length'] = contentLength;
+        } else if (contentLength) {
+            headers['Content-Length'] = contentLength;
+        }
+
+        res.writeHead(statusCode, headers);
+
+        // === PROXY STREAMING PARA O YOUTUBE (mínimo de RAM) ===
+        const proxyHeaders = range ? { Range: range } : {};
+
+        https.get(format.url, { headers: proxyHeaders }, (proxyRes) => {
+            proxyRes.pipe(res);
+        }).on('error', (err) => {
+            console.error('Proxy error:', err);
+            if (!res.headersSent) res.status(500).send('Erro no streaming');
+        });
+
+    } catch (err) {
+        console.error(err);
+        if (!res.headersSent) {
+            res.status(500).send('Erro ao processar download');
+        }
+    }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
+app.listen(process.env.PORT || 3000, () => {
+    console.log(`✅ CnTube Backend rodando na porta ${process.env.PORT || 3000}`);
+});
