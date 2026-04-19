@@ -1,62 +1,38 @@
-import express from "express";
-import { spawn } from "child_process";
-import path from "path";
-import fs from "fs";
-import os from "os";
-
+const express = require('express');
+const cors = require('cors');
+const ytdl = require('@distube/ytdl-core');
 const app = express();
-const port = process.env.PORT || 3000;
 
-app.use(express.static("./"));
+app.use(cors());
 
-app.get("/api/info", (req, res) => {
-  const videoUrl = req.query.url;
-  if (!videoUrl) return res.status(400).json({ error: "URL ausente" });
-  
-  const ytdlp = spawn("yt-dlp", [
-    "--dump-json", 
-    "--no-playlist", 
-    "--no-check-certificate",
-    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    videoUrl
-  ]);
-  
-  let raw = "";
-  ytdlp.stdout.on("data", (d) => raw += d);
-  ytdlp.on("close", (code) => {
-    if (code !== 0) return res.status(500).json({ error: "Erro no link" });
+// Esta é a rota que o seu site CnTube vai chamar
+app.get('/download', async (req, res) => {
+    const videoURL = req.query.url;
+
+    if (!videoURL) {
+        return res.status(400).send('URL do vídeo é obrigatória');
+    }
+
     try {
-      const info = JSON.parse(raw);
-      res.json({
-        title: info.title,
-        thumbnail: info.thumbnail,
-        duration: info.duration_string
-      });
-    } catch (e) { res.status(500).json({ error: "Erro ao processar" }); }
-  });
+        // 1. Configura o nome do arquivo para o iPhone reconhecer
+        res.header('Content-Disposition', 'attachment; filename="video_cntube.mp4"');
+        res.header('Content-Type', 'video/mp4');
+
+        // 2. O PIPE: Faz a ponte direta entre YouTube -> Render -> Seu Celular
+        // Sem salvar nada no disco do Render (evita o download falso de 0kb)
+        ytdl(videoURL, {
+            quality: 'highestvideo',
+            filter: 'audioandvideo'
+        }).pipe(res);
+
+    } catch (error) {
+        console.error('Erro ao processar:', error);
+        res.status(500).send('Erro no servidor do Render.');
+    }
 });
 
-app.get("/api/download", (req, res) => {
-  const videoUrl = req.query.url;
-  if (!videoUrl) return res.status(400).send("URL ausente");
-  
-  const tmpPath = path.join(os.tmpdir(), `video_${Date.now()}.mp4`);
-  
-  // COMANDO REFORÇADO: Disfarce de navegador e formato direto
-  const ytdlp = spawn("yt-dlp", [
-    "-f", "b[ext=mp4]/b",
-    "--no-check-certificate",
-    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "-o", tmpPath,
-    videoUrl
-  ]);
-
-  ytdlp.on("close", (code) => {
-    if (code !== 0) return res.status(500).send("Erro no download");
-    res.download(tmpPath, "video_lamonie.mp4", (err) => {
-      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-    });
-  });
+// O Render define a porta automaticamente, por isso usamos process.env.PORT
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
-
-app.listen(port, () => console.log(`Servidor rodando na porta ${port}`));
