@@ -13,7 +13,14 @@ app.get("/api/info", (req, res) => {
   const videoUrl = req.query.url;
   if (!videoUrl) return res.status(400).json({ error: "URL ausente" });
   
-  const ytdlp = spawn("yt-dlp", ["--dump-json", "--no-playlist", videoUrl]);
+  const ytdlp = spawn("yt-dlp", [
+    "--dump-json", 
+    "--no-playlist", 
+    "--no-check-certificate",
+    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    videoUrl
+  ]);
+  
   let raw = "";
   ytdlp.stdout.on("data", (d) => raw += d);
   ytdlp.on("close", (code) => {
@@ -35,10 +42,11 @@ app.get("/api/download", (req, res) => {
   
   const tmpPath = path.join(os.tmpdir(), `video_${Date.now()}.mp4`);
   
-  // VERSAO CORRIGIDA: Mais leve para o Render e iPhone
+  // COMANDO REFORÇADO: Disfarce de navegador e formato direto
   const ytdlp = spawn("yt-dlp", [
-    "-f", "best[ext=mp4]/best",
+    "-f", "b[ext=mp4]/b",
     "--no-check-certificate",
+    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "-o", tmpPath,
     videoUrl
   ]);
