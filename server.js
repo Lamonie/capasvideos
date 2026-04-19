@@ -8,33 +8,36 @@ app.use(cors());
 app.get('/download', (req, res) => {
     const videoURL = req.query.url;
 
-    if (!videoURL) {
-        return res.status(400).send('URL faltando');
-    }
+    if (!videoURL) return res.status(400).send('URL faltando');
 
-    // Configura o cabeçalho para download real no iPhone
+    // Headers mais simples para o Safari não "engasgar"
     res.setHeader('Content-Disposition', 'attachment; filename="video_cntube.mp4"');
     res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Transfer-Encoding', 'chunked'); // Diz para o Safari que o arquivo vem aos poucos
 
-    // Usa o yt-dlp que você instalou no Docker para fazer o stream direto
-    const ls = spawn('yt-dlp', [
-        '-o', '-', 
-        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+    // Comando mais leve para o Render Grátis não cortar a CPU
+    const yt = spawn('yt-dlp', [
+        '-f', 'mp4',        // Pega o melhor MP4 pronto (mais rápido que converter)
+        '--no-playlist',    // Garante que não tente baixar uma lista inteira
+        '-o', '-',          // Manda para a saída padrão
         videoURL
     ]);
 
-    // Manda os dados do Python direto para o seu navegador (PIPE)
-    ls.stdout.pipe(res);
+    yt.stdout.pipe(res);
 
-    ls.stderr.on('data', (data) => {
+    yt.stderr.on('data', (data) => {
         console.log(`Log: ${data}`);
     });
 
-    ls.on('close', (code) => {
-        if (code !== 0) console.log(`Processo terminou com erro: ${code}`);
+    yt.on('error', (err) => {
+        console.error('Erro ao iniciar yt-dlp:', err);
+    });
+
+    // Se o processo fechar com erro, avisa no log
+    yt.on('close', (code) => {
+        if (code !== 0) console.log(`Erro no download. Código: ${code}`);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`CnTube Backend rodando na porta ${PORT}`));
-
+app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
