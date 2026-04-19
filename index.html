@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Downloader Premium</title>
     <style>
         :root {
@@ -11,54 +11,73 @@
             --border-color: #333333;
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
+            --accent-color: #ffffff;
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             justify-content: center;
             padding: 20px;
             margin: 0;
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
         .container { width: 100%; max-width: 500px; text-align: center; margin-top: 5vh; }
+        
+        h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+        .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 30px; }
+
         input {
-            width: 100%; padding: 15px; background: var(--bg-color);
-            border: 1px solid var(--border-color); border-radius: 8px;
+            width: 100%; padding: 16px; background: var(--surface-color);
+            border: 1px solid var(--border-color); border-radius: 12px;
             color: #fff; margin-bottom: 15px; box-sizing: border-box;
+            font-size: 1rem; transition: border-color 0.2s;
         }
+        input:focus { border-color: #666; outline: none; }
+
         button.primary {
-            width: 100%; padding: 15px; background: #fff; color: #000;
-            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+            width: 100%; padding: 16px; background: var(--accent-color); color: #000;
+            border: none; border-radius: 12px; font-weight: 700; cursor: pointer;
+            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;
         }
+        
         .preview-area {
             background: var(--surface-color); border: 1px solid var(--border-color);
-            border-radius: 12px; padding: 15px; margin-top: 20px; display: none;
+            border-radius: 16px; padding: 20px; margin-top: 25px; display: none;
+            animation: fadeIn 0.3s ease-out;
         }
-        .preview-area img { width: 100%; border-radius: 8px; margin-bottom: 15px; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .preview-area img { width: 100%; border-radius: 10px; margin-bottom: 15px; }
+        
         button.download-btn {
-            width: 100%; padding: 15px; background: var(--surface-color);
-            border: 1px solid var(--border-color); color: #fff; border-radius: 8px; font-weight: bold;
+            width: 100%; padding: 16px; background: transparent;
+            border: 1px solid var(--border-color); color: #fff; border-radius: 12px; 
+            font-weight: 600; cursor: pointer; transition: background 0.2s;
         }
-        #status { margin-top: 15px; font-size: 0.9rem; color: #a1a1aa; }
+        button.download-btn:active { background: #333; }
+
+        #status { margin-top: 20px; font-size: 0.85rem; color: var(--text-muted); min-height: 20px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Baixar Vídeo</h1>
-        <p>Design Premium - Sem Emojis</p>
+        <h1>Downloader Pro</h1>
+        <p class="subtitle">Design Premium — Versão 2026</p>
 
-        <input type="text" id="urlInput" placeholder="Cole o link do YouTube aqui...">
+        <input type="text" id="urlInput" placeholder="Cole o link do vídeo aqui...">
         <button class="primary" id="searchBtn">BUSCAR VÍDEO</button>
 
         <div id="status"></div>
 
         <div class="preview-area" id="previewArea">
-            <img id="thumbnail" alt="Capa">
-            <div id="videoTitle" style="margin-bottom: 15px; font-weight: 600;"></div>
-            <button class="download-btn" id="dlBtn">BAIXAR AGORA (MP4)</button>
+            <img id="thumbnail" alt="Capa do Vídeo">
+            <div id="videoTitle" style="margin-bottom: 20px; font-size: 0.95rem; line-height: 1.4; font-weight: 500;"></div>
+            <button class="download-btn" id="dlBtn">INICIAR DOWNLOAD (MP4)</button>
         </div>
     </div>
 
@@ -69,15 +88,23 @@
         const statusDiv = document.getElementById('status');
         const previewArea = document.getElementById('previewArea');
 
+        // FUNÇÃO PARA BUSCAR INFO DO VÍDEO
         searchBtn.addEventListener('click', async () => {
             const url = urlInput.value.trim();
-            if (!url) return;
+            if (!url) {
+                statusDiv.textContent = "Por favor, insira um link.";
+                return;
+            }
 
-            statusDiv.textContent = "Buscando informações...";
+            statusDiv.textContent = "Processando informações...";
             searchBtn.disabled = true;
+            previewArea.style.display = 'none';
 
             try {
-                const response = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+                // Rota do seu backend no Render
+                const response = await fetch(`/info?url=${encodeURIComponent(url)}`);
+                if (!response.ok) throw new Error();
+                
                 const data = await response.json();
                 
                 document.getElementById('thumbnail').src = data.thumbnail;
@@ -85,16 +112,34 @@
                 previewArea.style.display = 'block';
                 statusDiv.textContent = "";
             } catch (error) {
-                statusDiv.textContent = "Erro ao buscar vídeo. Verifique o link.";
+                statusDiv.textContent = "Erro ao buscar vídeo. Tente novamente.";
             } finally {
                 searchBtn.disabled = false;
             }
         });
 
+        // FUNÇÃO DE DOWNLOAD CORRIGIDA PARA IPHONE (SAFARI/PWA)
         dlBtn.addEventListener('click', () => {
             const url = urlInput.value.trim();
-            statusDiv.textContent = "O download iniciará na barra azul do Safari...";
-            window.location.href = `/api/download?url=${encodeURIComponent(url)}`;
+            if (!url) return;
+
+            statusDiv.textContent = "O download começará em instantes...";
+            
+            // Criamos a URL de download apontando para o seu backend no Render
+            const downloadUrl = `/download?url=${encodeURIComponent(url)}`;
+
+            // MÉTODO DO LINK INVISÍVEL: O mais seguro contra o erro de "0 KB"
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', 'video_cntube.mp4'); 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Aviso visual para o usuário olhar o gerenciador do Safari
+            setTimeout(() => {
+                statusDiv.textContent = "Verifique a barra de downloads do seu navegador.";
+            }, 2000);
         });
     </script>
 </body>
