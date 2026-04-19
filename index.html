@@ -11,117 +11,54 @@
             --border-color: #333333;
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
-            --accent-color: #ffffff;
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             padding: 20px;
             margin: 0;
             min-height: 100vh;
-            box-sizing: border-box;
         }
-        .container {
-            width: 100%;
-            max-width: 500px;
-            margin-top: 5vh;
-            text-align: center;
-        }
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-        }
-        p {
-            color: var(--text-muted);
-            margin-bottom: 30px;
-            font-size: 0.95rem;
-        }
+        .container { width: 100%; max-width: 500px; text-align: center; margin-top: 5vh; }
         input {
-            width: 100%;
-            padding: 15px 20px;
-            background-color: var(--bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-main);
-            font-size: 1rem;
-            outline: none;
-            box-sizing: border-box;
-            margin-bottom: 15px;
-            -webkit-appearance: none;
-        }
-        input:focus {
-            border-color: var(--text-muted);
+            width: 100%; padding: 15px; background: var(--bg-color);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            color: #fff; margin-bottom: 15px; box-sizing: border-box;
         }
         button.primary {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--text-main);
-            color: var(--bg-color);
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            -webkit-appearance: none;
-        }
-        button.primary:hover {
-            opacity: 0.9;
+            width: 100%; padding: 15px; background: #fff; color: #000;
+            border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
         }
         .preview-area {
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 20px;
-            display: none;
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 15px; margin-top: 20px; display: none;
         }
-        .preview-area img {
-            width: 100%;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        .title-text {
-            font-weight: 600;
-            margin-bottom: 15px;
-            font-size: 1rem;
-        }
+        .preview-area img { width: 100%; border-radius: 8px; margin-bottom: 15px; }
         button.download-btn {
-            width: 100%;
-            padding: 15px;
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            -webkit-appearance: none;
+            width: 100%; padding: 15px; background: var(--surface-color);
+            border: 1px solid var(--border-color); color: #fff; border-radius: 8px; font-weight: bold;
         }
-        #status {
-            color: #ef4444;
-            margin-top: 15px;
-            font-size: 0.9rem;
-        }
+        #status { margin-top: 15px; font-size: 0.9rem; color: #a1a1aa; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h1>Baixar Vídeo</h1>
-        <p>Cole um link abaixo para fazer o download.</p>
+        <p>Design Premium - Sem Emojis</p>
 
         <input type="text" id="urlInput" placeholder="Cole o link do YouTube aqui...">
-        <button class="primary" id="searchBtn">Buscar</button>
+        <button class="primary" id="searchBtn">BUSCAR VÍDEO</button>
 
         <div id="status"></div>
 
         <div class="preview-area" id="previewArea">
-            <img id="thumbnail" alt="Capa do video">
-            <div class="title-text" id="videoTitle"></div>
-            <button class="download-btn" id="dlBtn">Baixar Arquivo (MP4)</button>
+            <img id="thumbnail" alt="Capa">
+            <div id="videoTitle" style="margin-bottom: 15px; font-weight: 600;"></div>
+            <button class="download-btn" id="dlBtn">BAIXAR AGORA (MP4)</button>
         </div>
     </div>
 
@@ -131,33 +68,24 @@
         const urlInput = document.getElementById('urlInput');
         const statusDiv = document.getElementById('status');
         const previewArea = document.getElementById('previewArea');
-        const thumbnail = document.getElementById('thumbnail');
-        const videoTitle = document.getElementById('videoTitle');
 
         searchBtn.addEventListener('click', async () => {
             const url = urlInput.value.trim();
             if (!url) return;
 
             statusDiv.textContent = "Buscando informações...";
-            statusDiv.style.color = "#a1a1aa";
             searchBtn.disabled = true;
-            previewArea.style.display = 'none';
 
             try {
-                // Aqui o visual tenta se comunicar com o motor
                 const response = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
-                if (!response.ok) throw new Error("Erro de rede ou link inválido.");
-                
                 const data = await response.json();
                 
-                thumbnail.src = data.thumbnail;
-                videoTitle.textContent = data.title;
+                document.getElementById('thumbnail').src = data.thumbnail;
+                document.getElementById('videoTitle').textContent = data.title;
                 previewArea.style.display = 'block';
                 statusDiv.textContent = "";
-
             } catch (error) {
-                statusDiv.textContent = "Erro: Servidor offline ou link inválido.";
-                statusDiv.style.color = "#ef4444";
+                statusDiv.textContent = "Erro ao buscar vídeo. Verifique o link.";
             } finally {
                 searchBtn.disabled = false;
             }
@@ -165,17 +93,8 @@
 
         dlBtn.addEventListener('click', () => {
             const url = urlInput.value.trim();
-            if (!url) return;
-            
-            statusDiv.textContent = "O download iniciará na barra nativa do Safari...";
-            statusDiv.style.color = "#a1a1aa";
-            
-            // Aqui o visual envia o link para o motor processar e baixar
+            statusDiv.textContent = "O download iniciará na barra azul do Safari...";
             window.location.href = `/api/download?url=${encodeURIComponent(url)}`;
-            
-            setTimeout(() => {
-                statusDiv.textContent = "";
-            }, 5000);
         });
     </script>
 </body>
