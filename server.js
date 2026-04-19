@@ -1,38 +1,40 @@
-const express = require('express');
-const cors = require('cors');
-const ytdl = require('@distube/ytdl-core');
-const app = express();
+import express from 'express';
+import cors from 'cors';
+import { spawn } from 'child_process';
 
+const app = express();
 app.use(cors());
 
-// Esta é a rota que o seu site CnTube vai chamar
-app.get('/download', async (req, res) => {
+app.get('/download', (req, res) => {
     const videoURL = req.query.url;
 
     if (!videoURL) {
-        return res.status(400).send('URL do vídeo é obrigatória');
+        return res.status(400).send('URL faltando');
     }
 
-    try {
-        // 1. Configura o nome do arquivo para o iPhone reconhecer
-        res.header('Content-Disposition', 'attachment; filename="video_cntube.mp4"');
-        res.header('Content-Type', 'video/mp4');
+    // Configura o cabeçalho para download real no iPhone
+    res.setHeader('Content-Disposition', 'attachment; filename="video_cntube.mp4"');
+    res.setHeader('Content-Type', 'video/mp4');
 
-        // 2. O PIPE: Faz a ponte direta entre YouTube -> Render -> Seu Celular
-        // Sem salvar nada no disco do Render (evita o download falso de 0kb)
-        ytdl(videoURL, {
-            quality: 'highestvideo',
-            filter: 'audioandvideo'
-        }).pipe(res);
+    // Usa o yt-dlp que você instalou no Docker para fazer o stream direto
+    const ls = spawn('yt-dlp', [
+        '-o', '-', 
+        '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+        videoURL
+    ]);
 
-    } catch (error) {
-        console.error('Erro ao processar:', error);
-        res.status(500).send('Erro no servidor do Render.');
-    }
+    // Manda os dados do Python direto para o seu navegador (PIPE)
+    ls.stdout.pipe(res);
+
+    ls.stderr.on('data', (data) => {
+        console.log(`Log: ${data}`);
+    });
+
+    ls.on('close', (code) => {
+        if (code !== 0) console.log(`Processo terminou com erro: ${code}`);
+    });
 });
 
-// O Render define a porta automaticamente, por isso usamos process.env.PORT
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`CnTube Backend rodando na porta ${PORT}`));
+
